@@ -1,13 +1,626 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Escape Room – Chat Phone</title>
+<style>
+  :root{
+    --phone-w: 380px;
+    --phone-h: 780px;
+    --bezel: 18px;
+    --bg: #0f1216;
+    --text: #ffffff;
+    --muted: #ffffff;
+    --divider: #1f2937;
+    --btn: #111827;
+    --btn-hover: #0f172a;
+    --radius-lg: 26px;
+    --radius-md: 14px;
+  }
+  html,body{height:100%;}
+  body{
+    background: radial-gradient(1200px 800px at 10% 10%, #0b1220 0%, #07090c 50%, #000 100%);
+    margin:0; display:grid; place-items:center; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+    color: var(--text);
+  }
+  .phone{ width: var(--phone-w); height: var(--phone-h); background: var(--bg); border-radius: calc(var(--radius-lg) + 6px); box-shadow: 0 15px 40px rgba(0,0,0,.45); position: relative; padding: var(--bezel); }
+  .glass{ position:absolute; inset:0; border-radius: inherit; pointer-events:none; }
+  .notch{ position:absolute; top:8px; left:50%; transform:translateX(-50%); width:140px; height:18px; background:#000; border-radius: 20px; }
+  .app{ position: absolute; inset: var(--bezel); background: linear-gradient(#0e1319, #0c1118); border-radius: var(--radius-lg); overflow:hidden; display:flex; flex-direction:column; }
+  header{ height: 60px; flex: 0 0 auto; display:flex; align-items:center; gap:10px; padding: 0 14px; border-bottom: 1px solid var(--divider); background: linear-gradient(#0d131a, #0b1017); }
+  header .avatar{ width:34px; height:34px; border-radius:50%; display:grid; place-items:center; background: linear-gradient(135deg, #111827, #0b1220); font-weight:700; color:#a5b4fc; border:1px solid #1f2937; }
+  header .title{ font-weight: 700; }
+  header .spacer{ flex:1; }
+  header button{ background: var(--btn); color: var(--text); border:1px solid #1f2937; padding:8px 12px; border-radius: 12px; cursor:pointer; }
 
-  </head>
-  <body>
-    <main>
-      <iframe width="392" height="620" style="display:block; margin: 0 auto; border: 0px;" src="https://studio.code.org/projects/applab/vw3Bl1eKq4mOULPqxz5zeXNADCLCfX_glU0Zt-pmj7n/embed?nosource"></iframe>
-    </main>
-    
-  </body>
+  .screen{ display:none; flex:1 1 auto; }
+  .screen.active{ display:flex; }
+
+  /* Login */
+  #screen0{ flex-direction:column; justify-content:flex-start; align-items:center; text-align:center; padding:20px; }
+  #screen0 .hero{ margin-bottom:10px; }
+  #loginCard{ display:flex; flex-direction:column; align-items:center; width:80%; margin-top:12px; background:#111827; padding:18px; border-radius:16px; box-shadow:0 4px 15px rgba(0,0,0,0.5); }
+  #screen0 input{ padding:8px 10px; border-radius:10px; border:1px solid #1f2937; background:#0c131b; color:#fff; text-align:center; width:80%; margin:6px auto; font-size:14px; }
+  #btnLogin{ margin-top:10px; width:60%; background:#93c5fd; color:#000; border:1px solid #1f2937; border-radius:12px; padding:10px; font-weight:600; cursor:pointer; }
+  #btnLogin:hover{ background:#bfdbfe; }
+  #lblError{ margin-top:8px; color:#ffbaba; font-size:13px; min-height:18px; }
+
+  /* Contacts */
+  #screen1{ flex-direction:column; }
+  .hero{ padding: 22px 18px 10px; }
+  .hero h1{ margin:0; font-size: 18px; font-weight: 800; }
+  .hero p{ margin:8px 0 0; color: var(--muted); font-size: 14px; }
+  .contacts{ display:grid; grid-template-columns: 1fr 1fr; gap:12px; padding: 10px 16px 16px; }
+  .contact{ background: #0c131b; border:1px solid #1f2937; border-radius: var(--radius-md); padding: 12px; display:flex; align-items:center; gap:10px; cursor:pointer; transition:.15s transform; user-select:none; color:#fff; }
+  .contact:hover{ transform: translateY(-1px); }
+  .contact .circle{ width:38px; height:38px; border-radius: 50%; display:grid; place-items:center; font-weight:700; border:1px solid #1f2937; background: linear-gradient(135deg, #0f172a, #0b1220); }
+  .contact .name{ font-weight:700; color:#fff; }
+
+  /* Chat */
+  #screen2{ flex-direction:column; overflow:hidden; }
+  .chat{ flex:1 1 auto; overflow-y:auto; padding: 16px; display:flex; flex-direction:column; gap:10px; min-height:0; overscroll-behavior:contain; -webkit-overflow-scrolling: touch; touch-action: pan-y; scrollbar-width: thin; scrollbar-color: #6b7280 #0b0f14; }
+  .chat::-webkit-scrollbar{ width: 10px; }
+  .chat::-webkit-scrollbar-track{ background:#0b0f14; }
+  .chat::-webkit-scrollbar-thumb{ background:#6b7280; border-radius:8px; border:2px solid #0b0f14; }
+  .chat:hover::-webkit-scrollbar-thumb{ background:#9ca3af; }
+  .sys{ align-self:center; font-size:12px; color:#fff; background:#0b0f14; border:1px solid #1f2937; padding:6px 10px; border-radius:999px; }
+  .row{ display:flex; gap:8px; }
+  .row.me{ justify-content:flex-end; }
+  .bubble{ max-width: 78%; padding: 10px 12px; border-radius: 14px; line-height: 1.35; font-size: 14px; border:1px solid #1f2937; color:#fff; }
+  .row.npc .bubble{ background: #22272e; border-top-left-radius: 6px; }
+  .row.me .bubble{ background: #1f6feb11; border-top-right-radius: 6px; }
+
+  .choices{
+    border-top: 1px solid var(--divider);
+    padding: 12px;
+    display:grid;
+    gap:10px;
+    position: sticky;
+    bottom: 0;
+    background: linear-gradient(#0e1319, #0c1118);
+    z-index: 5;           /* keep above chat */
+    pointer-events: auto; /* ensure clickable */
+  }
+  .choices .btn{ padding: 12px 14px; border-radius: 12px; font-size: 14px; font-weight:600; background: #0b1220; border:1px solid #1f2937; cursor:pointer; text-align:left; color:#fff; }
+  .choices .btn:hover{ background:#0d1626; }
+  .hidden{ display:none !important; }
+
+  @supports (padding: env(safe-area-inset-bottom)){
+    .chat{ padding-bottom: calc(16px + env(safe-area-inset-bottom)); }
+  }
+</style>
+</head>
+<body>
+  <div class="phone">
+    <div class="notch"></div>
+    <div class="app" role="application" aria-label="Escape Room Chat Phone">
+      <header>
+        <div class="avatar" id="avatar">W</div>
+        <div class="title" id="title">Login</div>
+        <div class="spacer"></div>
+        <button id="btnReset">Reset</button>
+      </header>
+
+      <!-- Screen 0: Login -->
+      <section id="screen0" class="screen active" aria-labelledby="title">
+        <div class="hero">
+          <h1>Student Login</h1>
+          <p>Enter your ID and password to access your messages.</p>
+        </div>
+        <div id="loginCard">
+          <input id="inputStudentID" type="text" placeholder="Student ID" />
+          <input id="inputPassword" type="password" placeholder="Password" />
+          <button id="btnLogin">Log In</button>
+          <div id="lblError"></div>
+        </div>
+      </section>
+
+      <!-- Screen 1: Choose a contact -->
+      <section id="screen1" class="screen" aria-labelledby="title">
+        <div class="hero">
+          <h1>Messages</h1>
+          <p>Choose who to text. Each thread branches based on your choices.</p>
+        </div>
+        <div class="contacts" id="contacts">
+          <button id="contactX" class="contact" data-contact="TYLER">
+            <div class="circle">X</div>
+            <div><div class="name">Xavier</div></div>
+          </button>
+          <button id="contactE" class="contact" data-contact="ENID">
+            <div class="circle">E</div>
+            <div><div class="name">Enid</div></div>
+          </button>
+        </div>
+      </section>
+
+      <!-- Screen 2: Chat -->
+      <section id="screen2" class="screen" aria-live="polite" aria-label="Chat view">
+        <div id="chat" class="chat"></div>
+        <div class="choices">
+          <div class="row2">
+            <button id="btnChoice1" class="btn hidden"></button>
+            <button id="btnChoice2" class="btn hidden"></button>
+          </div>
+        </div>
+      </section>
+    </div>
+    <div class="glass"></div>
+  </div>
+
+<script>
+/* =============================
+   Conversation trees
+   ============================= */
+// WEDNESDAY cohort
+const conversations = {
+  "TYLER_root": {
+    id: "TYLER_root",
+    speakerText: "Xavier is online...",
+    choices: [
+      { text: "I have reason to suspect you are behind Rowan's murder.", next: "TYLER_q1" },
+      { text: "Hi. Do you know what happened to Rowan?", next: "TYLER_q2" }
+    ]
+  },
+  "TYLER_q1": {
+    id: "TYLER_q1",
+    speakerText: "What? That's insane! I didn't murder Rowan.",
+    choices: [
+      { text: "My evidence points otherwise.", next: "TYLER_q1a" },
+      { text: "If you didn't do it, then who did?", next: "TYLER_q1b" }
+    ]
+  },
+  "TYLER_q1a": {
+    id: "TYLER_q1a",
+    speakerText: "What evidence? I had an appointment with Dr. Kinbott. Then, I went to the Cafe to study. My alibi was cleared. Where is this coming from?",
+    choices: [
+      { text: "You were on the list of suspects. I just thought maybe... I don't know.", next: "TYLER_end" },
+      { text: "...Circumstantial evidence.", next: "TYLER_noFollow" }
+    ]
+  },
+  "TYLER_q1b": {
+    id: "TYLER_q1b",
+    speakerText: "I have no idea. I had an appointment with Dr. Kinbott then went to the cafe that night. Tyler can vouch for me, if you care that much.",
+    choices: [
+      { text: "I don't know if I believe you. You're on the list of suspects you know. And you're very chill for someone who is so close to Ronan. Almost like you know you won't be next...", next: "TYLER_callTime" },
+      { text: "I have some circumstantial evidence that you're involved.", next: "TYLER_noFollow" }
+    ]
+  },
+  "TYLER_q2": {
+    id: "TYLER_q2",
+    speakerText: "I have no idea. I had an appointment with Dr. Kinbott then went to the cafe that night. Tyler can vouch for me, if you care that much.",
+    choices: [
+      { text: "I don't know if I believe you. You're on the list of suspects you know. And you're very chill for someone who is so close to Ronan. Almost like you know you won't be next...", next: "TYLER_q2a" },
+      { text: "I have some evidence that you're involved.", next: "TYLER_q2b" }
+    ]
+  },
+  "TYLER_q2a": {
+    id: "TYLER_q2a",
+    speakerText: "I just told you my alibi was cleared. Where is this coming from?",
+    choices: [
+      { text: "I don't know. You just seem very chill for someone so close to Rowan", next: "TYLER_callTime" },
+      { text: "I came across some circumstantial evidence that points to you...", next: "TYLER_noFollow" }
+    ]
+  },
+  "TYLER_q2b": {
+    id: "TYLER_q2b",
+    speakerText: "What evidence? I told you, I was at the at the Cafe when Rowan went missing. My alibi was cleared. Where is this coming from?",
+    choices: [
+      { text: "I don't know. You just seem very chill for someone so close to Rowan", next: "TYLER_callTime" },
+      { text: "Circumstantial evidence...", next: "TYLER_noFollow" }
+    ]
+  },
+  "TYLER_noFollow": {
+    id: "TYLER_noFollow",
+    speakerText: "Circumstantial evidence? Wednesday, please - this is crazy.",
+    choices: [
+      { text: "Rowan going missing is crazy too.", next: "TYLER_end" },
+      { text: "Do you have any information? For someone so close to Rowan you seem a little too chill.", next: "TYLER_callTime" }
+    ]
+  },
+  "TYLER_callTime": {
+    id: "TYLER_callTime",
+    speakerText: "I'm not 'chill'. Rowan is my roommate and I miss him. But I have a good feeling he's coming back. Things aren't always what they seem, especially at Nevermore. You should clear Enid's and Eugene's name if you're so concerned - but it wasn't me.",
+    choices: [
+      { text: "That doesn't convince me.", next: "TYLER_end" },
+      { text: "I've already cleared their names. You're the only suspect left.", next: "TYLER_end" }
+    ]
+  },
+  "TYLER_end": {
+    id: "TYLER_end",
+    speakerText: "Well, it wasn't me. Just...believe me. Anyways, I have to go. I have to finish Ronan computer science homework so he doesn't fall behind. And of course he picks the longest word ever to encode - bluesourpatchkids. Hey! Any chance you want to do it for me?",
+    choices: [
+      { text: "Why would I ever do that?", next: "TYLER_final" },
+      { text: "Fat chance.", next: "TYLER_final" }
+    ]
+  },
+  "TYLER_final": {
+    id: "TYLER_final",
+    speakerText: "Whatever. I'll just ask your Thing to do it for me. Turns out he's a great programmer. Is Thing a he or an it? I've never asked his pronouns...",
+    choices: [
+      { text: "Bye Xavier...", next: "TYLER_final2" },
+      { text: "🙄", next: "TYLER_final2" }
+    ]
+  },
+  "TYLER_final2": {
+    id: "TYLER_final2",
+    speakerText: "No sense of humor, I swear...",
+    choices: []
+  },
+
+  // ENID conversation
+  "ENID_root": {
+    id: "ENID_root",
+    speakerText: "Enid is online...",
+    choices: [
+      { text: "Did you know you're on the list of suspects for Rowan's case?", next: "ENID_q1" },
+      { text: "Hi, have you heard anything about Rowan?", next: "ENID_q2" }
+    ]
+  },
+  "ENID_q1": {
+    id: "ENID_q1",
+    speakerText: "WHAT? WHY! I was in our room the whole night. Mrs. Thornhill checked the doors right when the police called about Rowan, and she checked me off.",
+    choices: [
+      { text: "They found a wad of fur. And well, you're a werewolf.", next: "ENID_q1a" },
+      { text: "We've been known to slip out...", next: "ENID_q1b" }
+    ]
+  },
+  "ENID_q1a": {
+    id: "ENID_q1a",
+    speakerText: "I haven't wolfed out yet, you know that. If they found a strand of pink hair that'd be different, but this is CRAZY.",
+    choices: [
+      { text: "I hacked into the DNA results... are you positive your DNA didn't come up?", next: "ENID_q1c" },
+      { text: "I think they ran DNA on it...I haven't seen it yet, but are you sure?", next: "ENID_q1c" }
+    ]
+  },
+  "ENID_q1b": {
+    id: "ENID_q1b",
+    speakerText: "With Mrs. Thornhill on duty, there's no WAY.",
+    choices: [
+      { text: "Yea. I guess that's true. But that's not hard evidence. We need hard evidence. They have hard evidence...a wad of fur. So we need to be positive it won't be linked as a match to you.", next: "ENID_end" },
+      { text: "Fair. But let's say they found some DNA. You're sure it won't come up as a match to you?", next: "ENID_q1c" }
+    ]
+  },
+  "ENID_q1c": {
+    id: "ENID_q1c",
+    speakerText: "Yes, I am POSITIVE. Even if I HAD wolfed out, the fur would still have my DNA. I'll give them a swab if they want!",
+    choices: [
+      { text: "No it's fine. I think I can login to the database and check. I think I'll be able to clear you.", next: "ENID_end" },
+      { text: "I think I just need to figure out if the sample they found is male or female.", next: "ENID_q1d" }
+    ]
+  },
+  "ENID_q1d": {
+    id: "ENID_q1d",
+    speakerText: "Right, if it's DNA from a male - I'm clear for sure!",
+    choices: [
+      { text: "Exactly. I'll work on it.", next: "ENID_end" },
+      { text: "Well we'll see. But that would help.", next: "ENID_end" }
+    ]
+  },
+  "ENID_q2": {
+    id: "ENID_q2",
+    speakerText: "Rowan? No, I'm so worried. He was weirdly quiet this week. And then he goes missing! It's so scary.",
+    choices: [
+      { text: "Did you know they found some DNA where he went missing...a wad of fur.", next: "ENID_q2a" },
+      { text: "Do you think it's possible Rowan left on purpose?", next: "ENID_q2b" }
+    ]
+  },
+  "ENID_q2a": {
+    id: "ENID_q2a",
+    speakerText: "You cannot POSSIBLY think I was involved?",
+    choices: [
+      { text: "Well...", next: "ENID_q1" },
+      { text: "No I don't. But you are on the list of suspects.", next: "ENID_q1" }
+    ]
+  },
+  "ENID_q2b": {
+    id: "ENID_q2b",
+    speakerText: "I mean I guess so. I don't know. He did seem upset when I last saw him, but that could be anything. Maybe he had run out of sour patch kids. So the whole thing is sooo weird.",
+    choices: [
+      { text: "Sour patch kids? Well, I'll let you know if I find anything.", next: "ENID_end" },
+      { text: "I stole some police notes. There's some signs pointing to some sort of animal...maybe a wolf.", next: "ENID_q2a" }
+    ]
+  },
+  "ENID_end": { id: "ENID_end", speakerText: "Well keep me posted. I want Rowan safe too!", choices: [] },
+  "ENID_end2": { id: "ENID_end2", speakerText: "Oh thank god, well keep me posted. I want Rowan safe too - but I don't want to go to jail!", choices: [] }
+};
+
+// ROWAN cohort (only Xavier; single-choice after root)
+const conversationsRowan = {
+  "TYLER_root": {
+    id: "TYLER_root",
+    speakerText: "Dude... people are asking when you're coming back. What are you going to say?",
+    choices: [
+      { text: "Let them talk, I don't care. I can't come back like this.", next: "R_TYLER_q1" },
+      { text: "What do you mean come back?", next: "R_TYLER_q1a" }
+    ]
+  },
+  "R_TYLER_q1": {
+    id: "R_TYLER_q1",
+    speakerText: "Dude I get it. You tried a spell and it went wrong. You have hair growing all over your body. You look crazy. Next time you have a date, maybe just wear a hat to cover your bald spot. But you have to come back eventually.",
+    choices: [ { text: "Where do you think I am exactly?", next: "R_TYLER_q1b" } ]
+  },
+  "R_TYLER_q1a": {
+    id: "R_TYLER_q1a",
+    speakerText: "What do YOU mean? Dude I get it. You tried a spell and it went wrong. You have hair growing all over your body. You look crazy. Next time you have a date, maybe just wear a hat to cover your bald spot. But you have to come back eventually.",
+    choices: [ { text: "Oh right. The spell. And...I can come back? Where do you think I even am?", next: "R_TYLER_q1b" } ]
+  },
+  "R_TYLER_q1b": {
+    id: "R_TYLER_q1b",
+    speakerText: "Brother, I know where you are. And you can't stay in the treehouse in the woods forever. It's going to get cold and you can't live off of sour patch kids.",
+    choices: [ { text: "So, all this news and frenzy... just for a spell gone wrong?", next: "R_TYLER_q1c" } ]
+  },
+  "R_TYLER_q1c": {
+    id: "R_TYLER_q1c",
+    speakerText: "You're acting weird. Just figure it out and come back. I kidnapped Wednesday's Thing to do your homework, I'll send him out with a razor to come find you. Give yourself a haircut and then wander back into town or something. People are talking too much. And Wednesday is snooping around a LOT, any longer and she'll figure out our real secrets.",
+    choices: [ { text: "Real secrets huh? Like which ones?", next: "R_TYLER_endA" } ]
+  },
+  "R_TYLER_endA": { id: "R_TYLER_endA", speakerText: "Right, like I would ever type any of those out. Never leave a paper trail. Remember that. And, get a haircut. See you soon.", choices: [] }
+};
+
+/* =============================
+   UI state + rendering
+   ============================= */
+const screen0 = document.getElementById('screen0');
+const screen1 = document.getElementById('screen1');
+const screen2 = document.getElementById('screen2');
+const chatEl = document.getElementById('chat');
+const btnChoice1 = document.getElementById('btnChoice1');
+const btnChoice2 = document.getElementById('btnChoice2');
+const title = document.getElementById('title');
+const avatar = document.getElementById('avatar');
+const btnReset = document.getElementById('btnReset');
+const contactX = document.getElementById('contactX');
+const contactE = document.getElementById('contactE');
+const contacts = document.getElementById('contacts');
+
+let currentNodeId = null;
+let currentContact = null; // 'TYLER' or 'ENID'
+let cohort = null;        // 'wednesday' or 'rowan'
+let activeConvos = conversations; // default
+
+function setScreen(which){
+  screen0.classList.toggle('active', which === 0);
+  screen1.classList.toggle('active', which === 1);
+  screen2.classList.toggle('active', which === 2);
+}
+
+function clearChat(){ chatEl.innerHTML=''; }
+
+function sysLine(text){
+  const div = document.createElement('div');
+  div.className = 'sys';
+  div.textContent = text;
+  chatEl.appendChild(div);
+  maybeStickToBottom();
+}
+
+function npcLine(text){
+  const row = document.createElement('div');
+  row.className = 'row npc';
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble';
+  bubble.textContent = text;
+  row.appendChild(bubble);
+  chatEl.appendChild(row);
+  maybeStickToBottom();
+}
+
+function meLine(text){
+  const row = document.createElement('div');
+  row.className = 'row me';
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble';
+  bubble.textContent = text;
+  row.appendChild(bubble);
+  chatEl.appendChild(row);
+  maybeStickToBottom();
+}
+
+function showChoices(node){
+  if (!node || !node.choices || node.choices.length === 0){
+    btnChoice1.classList.add('hidden');
+    btnChoice2.classList.add('hidden');
+    adjustChatForChoices();
+    return;
+  }
+  // First choice
+  btnChoice1.classList.remove('hidden');
+  btnChoice1.textContent = node.choices[0].text;
+
+  // Optional second
+  const second = node.choices.length > 1 ? node.choices[1] : null;
+  if (second && second.text){
+    btnChoice2.classList.remove('hidden');
+    btnChoice2.textContent = second.text;
+  } else {
+    btnChoice2.classList.add('hidden');
+    btnChoice2.textContent = '';
+  }
+  adjustChatForChoices();
+}
+
+function renderNode(nodeId){
+  const node = activeConvos[nodeId];
+  if (!node) return;
+  currentNodeId = nodeId;
+  setTimeout(function(){
+    if (/_root$/.test(nodeId)) sysLine(node.speakerText);
+    else npcLine(node.speakerText);
+    showChoices(node);
+  }, 350);
+}
+
+function handleChoice(idx){
+  const node = activeConvos[currentNodeId];
+  if (!node || !node.choices || !node.choices[idx]) return;
+  const choice = node.choices[idx];
+  meLine(choice.text);
+  btnChoice1.classList.add('hidden');
+  btnChoice2.classList.add('hidden');
+  setTimeout(function(){ renderNode(choice.next); }, 450);
+}
+
+function startConversation(name){
+  currentContact = name;
+  clearChat();
+  setScreen(2);
+  if (name === 'TYLER'){ title.textContent = 'Xavier'; avatar.textContent = 'X'; renderNode('TYLER_root'); }
+  if (name === 'ENID'){ title.textContent = 'Enid';   avatar.textContent = 'E'; renderNode('ENID_root'); }
+}
+
+// --- CLICK WIRING ---
+// 1) Event delegation for contacts (robust even if buttons are re-rendered)
+contacts.addEventListener('click', function(e){
+  const btn = e.target.closest('.contact');
+  if (!btn) return;
+  const who = btn.getAttribute('data-contact');
+  if (who) startConversation(who);
+});
+
+// 2) Explicit listeners for choice buttons
+btnChoice1.addEventListener('click', function(){ handleChoice(0); });
+btnChoice2.addEventListener('click', function(){ handleChoice(1); });
+
+function adjustChatForChoices(){
+  var choices = document.querySelector('.choices');
+  var h = choices ? choices.offsetHeight : 0;
+  chatEl.style.paddingBottom = (16 + h) + 'px';
+}
+
+// Scroll behavior
+var stick = true;
+function isNearBottom(){
+  return (chatEl.scrollHeight - (chatEl.scrollTop + chatEl.clientHeight)) < 48;
+}
+function maybeStickToBottom(){
+  if (stick && isNearBottom()){
+    chatEl.scrollTop = chatEl.scrollHeight;
+  }
+}
+chatEl.addEventListener('scroll', function(){ stick = isNearBottom(); });
+window.addEventListener('resize', adjustChatForChoices);
+window.addEventListener('load', adjustChatForChoices);
+
+// Contacts per cohort
+function updateContactsForCohort(){
+  if (cohort === 'rowan'){
+    contactX.classList.remove('hidden');
+    contactE.classList.add('hidden');
+  } else {
+    contactX.classList.remove('hidden');
+    contactE.classList.remove('hidden');
+  }
+}
+
+// Reset
+btnReset.addEventListener('click', function(){
+  if (screen2.classList.contains('active')){
+    title.textContent = 'Messages'; avatar.textContent = (cohort === 'rowan') ? 'R' : 'W';
+    setScreen(1); clearChat();
+    btnChoice1.classList.add('hidden'); btnChoice2.classList.add('hidden');
+    updateContactsForCohort();
+  } else if (screen1.classList.contains('active')){
+    title.textContent = 'Login'; avatar.textContent = 'W';
+    setScreen(0); clearChat();
+    var e = document.getElementById('lblError'); if (e) e.textContent = '';
+  } else {
+    title.textContent = 'Login'; avatar.textContent = 'W'; setScreen(0);
+  }
+});
+
+// Login
+var inputStudentID = document.getElementById('inputStudentID');
+var inputPassword = document.getElementById('inputPassword');
+var btnLogin = document.getElementById('btnLogin');
+var lblError = document.getElementById('lblError');
+
+function ieq(a,b){ return String(a||'').toLowerCase() === String(b||'').toLowerCase(); }
+
+btnLogin.addEventListener('click', function(){
+  var id = (inputStudentID.value || '').trim();
+  var pw = (inputPassword.value || '').trim();
+
+  if (id === '1029987' && ieq(pw,'wklqj')){
+    cohort = 'wednesday'; activeConvos = conversations;
+    updateContactsForCohort();
+    title.textContent = 'Messages'; avatar.textContent = 'W'; lblError.textContent = '';
+    setScreen(1);
+  } else if (id === '230890' && ieq(pw,'eoxhvrxusdwfknlgv')){
+    cohort = 'rowan'; activeConvos = conversationsRowan;
+    updateContactsForCohort();
+    title.textContent = 'Messages'; avatar.textContent = 'R'; lblError.textContent = '';
+    setScreen(1);
+  } else {
+    lblError.textContent = 'Wrong ID or password. Try again.';
+  }
+});
+
+[inputStudentID, inputPassword].forEach(function(el){
+  el.addEventListener('keydown', function(e){ if (e.key === 'Enter') btnLogin.click(); });
+});
+
+/* =============================
+   Tests (add #test to URL to run)
+   ============================= */
+(function runTests(){
+  var url = String(location.href);
+  if (!(url.includes('#test') || url.includes('?test=1'))) return;
+  console.log('[TEST] Running UI tests...');
+  var has = function(el, cls){ return el.classList.contains(cls); };
+
+  // setScreen
+  setScreen(0);
+  console.assert(has(screen0,'active') && !has(screen1,'active') && !has(screen2,'active'), 'setScreen(0) failed');
+  setScreen(1);
+  console.assert(!has(screen0,'active') && has(screen1,'active') && !has(screen2,'active'), 'setScreen(1) failed');
+  setScreen(2);
+  console.assert(!has(screen0,'active') && !has(screen1,'active') && has(screen2,'active'), 'setScreen(2) failed');
+
+  // default roots present
+  ['TYLER_root','ENID_root'].forEach(function(id){
+    var n = conversations[id];
+    console.assert(n && Array.isArray(n.choices) && n.choices.length >= 1, '[TEST] '+id+' exists');
+  });
+
+  // invalid login
+  setScreen(0); inputStudentID.value='bad'; inputPassword.value='creds'; btnLogin.click();
+  console.assert(lblError.textContent.includes('Wrong ID'), '[TEST] invalid login shows error');
+
+  // Wednesday login + choices appear
+  inputStudentID.value='1029987'; inputPassword.value='wklqj'; btnLogin.click();
+  console.assert(has(screen1,'active'), '[TEST] Wed login goes to contacts');
+  document.getElementById('contactX').click();
+  setTimeout(function(){
+    console.assert(!btnChoice1.classList.contains('hidden'), '[TEST] choices visible after first NPC line (Wed)');
+    btnReset.click();
+  }, 600);
+
+  // Rowan login: only Xavier visible; single-choice after root is clickable
+  setTimeout(function(){
+    setScreen(0);
+    inputStudentID.value='230890'; inputPassword.value='eoxhvrxusdwfknlgv'; btnLogin.click();
+    console.assert(!document.getElementById('contactX').classList.contains('hidden') && document.getElementById('contactE').classList.contains('hidden'), '[TEST] Rowan shows only Xavier');
+    document.getElementById('contactX').click();
+    setTimeout(function(){
+      const before = currentNodeId;
+      btnChoice2.dispatchEvent(new MouseEvent('click', {bubbles:true}));
+      setTimeout(function(){
+        console.assert(currentNodeId && currentNodeId !== before, '[TEST] Rowan: advanced from root');
+        setTimeout(function(){
+          console.assert(btnChoice2.classList.contains('hidden'), '[TEST] Rowan: single-choice node hides second button');
+          const before2 = currentNodeId;
+          btnChoice1.dispatchEvent(new MouseEvent('click', {bubbles:true}));
+          setTimeout(function(){
+            console.assert(currentNodeId !== before2, '[TEST] Rowan: single-choice advances');
+          }, 350);
+        }, 350);
+      }, 350);
+    }, 600);
+  }, 1200);
+
+  console.log('[TEST] Tests queued.');
+})();
+</script>
+</body>
 </html>
